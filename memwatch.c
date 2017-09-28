@@ -92,6 +92,7 @@
 ** 020918 JLI	[2.69 changed to GPL, added C++ array allocation by Howard Cohen]
 ** 030212 JLI	[2.70 mwMalloc() bug for very large allocations (4GB on 32bits)]
 ** 030520 JLI	[2.71 added ULONG_LONG_MAX as a 64-bit detector (thanks Sami Salonen)]
+** 170928 SHY	[2.72 fix signal handler for SIGSEGV (yshen)]
 */
 
 #define __MEMWATCH_C 1
@@ -2403,13 +2404,13 @@ int mwIsSafeAddr( void *p, unsigned len )
 
 typedef void (*mwSignalHandlerPtr)( int );
 mwSignalHandlerPtr mwOldSIGSEGV = (mwSignalHandlerPtr) 0;
-jmp_buf mwSIGSEGVjump;
+sigjmp_buf mwSIGSEGVjump;
 static void mwSIGSEGV( int n );
 
 static void mwSIGSEGV( int n )
 {
 	n = n;
-	longjmp( mwSIGSEGVjump, 1 );
+	siglongjmp( mwSIGSEGVjump, 1 );
 }
 
 int mwIsReadAddr( const void *p, unsigned len )
@@ -2422,7 +2423,7 @@ int mwIsReadAddr( const void *p, unsigned len )
 	/* set up to catch the SIGSEGV signal */
 	mwOldSIGSEGV = signal( SIGSEGV, mwSIGSEGV );
 
-	if( setjmp( mwSIGSEGVjump ) )
+	if( sigsetjmp( mwSIGSEGVjump , 1) )
 	{
 		signal( SIGSEGV, mwOldSIGSEGV );
 		return 0;
@@ -2458,7 +2459,7 @@ int mwIsSafeAddr( void *p, unsigned len )
 	/* set up to catch the SIGSEGV signal */
 	mwOldSIGSEGV = signal( SIGSEGV, mwSIGSEGV );
 
-	if( setjmp( mwSIGSEGVjump ) )
+	if( sigsetjmp( mwSIGSEGVjump , 1) )
 	{
 		signal( SIGSEGV, mwOldSIGSEGV );
 		return 0;
